@@ -1,0 +1,45 @@
+---
+hu:
+  settings:
+    encryption_migration_guide: Titkosítási beállítási és migrációs útmutató
+    settings_nav:
+      accounts_label: Számlák
+      advanced_section_title: Speciális
+      ai_prompts_label: MI promptok
+      auto_matches_label: Automatikus egyeztetés
+      api_key_label: API-kulcs
+      payment_label: Fizetés
+      categories_label: Kategóriák
+      feedback_label: Visszajelzés
+      general_section_title: Általános
+      imports_label: Importálások
+      exports_label: Exportálások
+      llm_usage_label: LLM-használat
+      logout: Kijelentkezés
+      merchants_label: Kereskedők
+      providers_label: Szolgáltatók
+      guides_label: Útmutatók
+      other_section_title: Egyéb
+      preferences_label: Preferenciák
+      profile_label: Profiladatok
+      recurring_transactions_label: Ismétlődő
+      rules_label: Szabályok
+      security_label: Biztonság
+      self_hosting_label: Saját üzemeltetés
+      sso_providers_label: SSO-szolgáltatók
+      statement_vault_label: Kimutatástár
+      tags_label: Címkék
+      transactions_section_title: Tranzakciók
+      users_label: Felhasználók
+      whats_new_label: Újdonságok
+      api_keys_label: API-kulcs
+      appearance_label: Megjelenés
+      bank_sync_label: Banki szinkronizálás
+    settings_nav_link_large:
+      next: Következő
+      previous: Vissza
+    user_avatar_field:
+      accepted_formats: JPG vagy PNG. Maximum 5 MB.
+      choose: Fotó feltöltése
+      choose_label: (nem kötelező)
+      change: Fotó módosítása

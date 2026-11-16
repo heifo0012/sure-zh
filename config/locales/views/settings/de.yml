@@ -1,0 +1,49 @@
+---
+de:
+  settings:
+    encryption_migration_guide: Anleitung zur Einrichtung der Verschlüsselung und zur Migration
+    settings_nav:
+      accounts_label: Konten
+      advanced_section_title: Erweitert
+      ai_prompts_label: KI-Eingabeaufforderungen
+      auto_matches_label: Automatischer Abgleich
+      api_key_label: API-Schlüssel
+      payment_label: Zahlung
+      categories_label: Kategorien
+      feedback_label: Feedback
+      general_section_title: Allgemein
+      imports_label: Importe
+      exports_label: Exporte
+      logout: Abmelden
+      merchants_label: Händler
+      guides_label: Anleitungen
+      other_section_title: Mehr
+      preferences_label: Einstellungen
+      profile_label: Profilinformationen
+      recurring_transactions_label: Wiederkehrend
+      rules_label: Regeln
+      security_label: Sicherheit
+      self_hosting_label: Self-Hosting
+      tags_label: Tags
+      transactions_section_title: Transaktionen
+      whats_new_label: Was ist neu
+      api_keys_label: API-Schlüssel
+      bank_sync_label: Banksynchronisierung
+      appearance_label: Darstellung
+      background_jobs_label: Hintergrundjobs
+      debug_label: Debug
+      llm_usage_label: LLM-Nutzung
+      mcp_label: MCP
+      providers_label: Anbieter
+      sso_providers_label: SSO-Anbieter
+      statement_vault_label: Auszugsarchiv
+      users_label: Benutzer
+      system_health_label: Systemstatus
+    settings_nav_link_large:
+      next: Weiter
+      previous: Zurück
+    user_avatar_field:
+      accepted_formats: JPG oder PNG, maximal 5 MB
+      choose: Foto hochladen
+      choose_label: (optional)
+      change: Foto ändern

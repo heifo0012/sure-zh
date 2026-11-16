@@ -1,0 +1,25 @@
+<%
+  header_title t(".title", family: @invitation.family.name)
+%>
+
+<div class="space-y-1 mb-6 text-center">
+  <p class="text-secondary">
+    <%= t(".message",
+          inviter: @invitation.inviter.display_name,
+          role: t("invitations.new.role_#{@invitation.role}", default: @invitation.role.to_s.humanize)) %>
+  </p>
+</div>
+
+<div class="space-y-4">
+  <%# The page looks the same whether or not the email has an account, since
+      household admins can open pending invitation links. %>
+  <%= render DS::Link.new(
+    text: t(".create_account"),
+    href: new_registration_path(invitation: @invitation.token),
+    variant: "outline",
+    size: "lg",
+    full_width: true
+  ) %>
+
+  <p class="text-secondary text-sm text-center"><%= t(".existing_account_hint") %></p>
+</div>

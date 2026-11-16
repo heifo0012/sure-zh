@@ -1,0 +1,49 @@
+---
+ca:
+  settings:
+    encryption_migration_guide: Guia de configuració del xifratge i migració
+    settings_nav:
+      accounts_label: Comptes
+      advanced_section_title: Avançat
+      ai_prompts_label: Prompts d'IA
+      auto_matches_label: Coincidències automàtiques
+      api_key_label: Clau API
+      api_keys_label: Clau API
+      appearance_label: Aparença
+      background_jobs_label: Tasques en segon pla
+      bank_sync_label: Sincronització bancària
+      categories_label: Categories
+      debug_label: Depuració
+      exports_label: Exportacions
+      feedback_label: Feedback
+      general_section_title: General
+      guides_label: Guies
+      imports_label: Importacions
+      llm_usage_label: Ús d'LLM
+      logout: Tanca la sessió
+      mcp_label: MCP
+      merchants_label: Comerços
+      other_section_title: Més
+      payment_label: Pagament
+      preferences_label: Preferències
+      profile_label: Informació del perfil
+      providers_label: Proveïdors
+      recurring_transactions_label: Recurrent
+      rules_label: Regles
+      security_label: Seguretat
+      self_hosting_label: Self hosting
+      sso_providers_label: Proveïdors SSO
+      statement_vault_label: Arxiu d'extractes
+      system_health_label: Estat del sistema
+      tags_label: Etiquetes
+      transactions_section_title: Transaccions
+      users_label: Usuaris
+      whats_new_label: Novetats
+    settings_nav_link_large:
+      next: Següent
+      previous: Enrere
+    user_avatar_field:
+      accepted_formats: JPG o PNG. Màxim 5MB.
+      change: Canvia la foto
+      choose: Puja una foto
+      choose_label: "(opcional)"

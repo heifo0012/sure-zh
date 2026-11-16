@@ -1,0 +1,179 @@
+name: Pipelock Security Scan
+
+on:
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  security-scan:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Install Helm
+        uses: azure/setup-helm@dda3372f752e03dde6b3237bc9431cdc2f7a02a2 # v5.0.0
+        with:
+          version: v3.21.4
+
+      - name: Build chart dependencies
+        shell: bash
+        run: |
+          helm repo add cloudnative-pg https://cloudnative-pg.github.io/charts
+          helm repo add ot-helm https://ot-container-kit.github.io/helm-charts
+          helm repo update
+          helm dependency build charts/sure
+
+      - name: Pipelock Scan
+        uses: pipelab-org/pipelock@556048c1c18d84f7d61d28f686220178a4ff2c4d # v3.8.0
+        with:
+          version: '3.8.0'
+          scan-diff: 'true'
+          fail-on-findings: 'true'
+          test-vectors: 'false'
+          exclude-paths: |
+            config/locales/views/reports/ca.yml
+            config/locales/views/reports/de.yml
+            config/locales/views/reports/en.yml
+            config/locales/views/reports/es.yml
+            config/locales/views/reports/fr.yml
+            config/locales/views/reports/hu.yml
+            config/locales/views/reports/it.yml
+            config/locales/views/reports/nl.yml
+            config/locales/views/reports/pl.yml
+            config/locales/views/reports/pt-BR.yml
+            config/locales/views/reports/ro.yml
+            config/locales/views/reports/ru.yml
+            config/locales/views/reports/tr.yml
+            config/locales/views/reports/uk.yml
+            config/locales/views/reports/vi.yml
+            config/locales/views/reports/zh-CN.yml
+            config/locales/views/reports/zh-TW.yml
+
+      - name: Validate Pipelock deployment contracts
+        shell: bash
+        env:
+          # compose.example.ai.yml intentionally requires SECRET_KEY_BASE with
+          # no fallback default (see #3214/#3221) - the old fallback was
+          # itself the exact publicly-known value KNOWN_COMPROMISED_SECRET_KEY_BASES
+          # guards against. This validation step only renders/lints the
+          # compose file, it never boots a container from it, so a throwaway
+          # placeholder is fine here - it just needs to be present.
+          SECRET_KEY_BASE: ci-validation-placeholder-not-a-real-secret
+        run: |
+          set -euo pipefail
+
+          assert_no_blocklist() {
+            ruby -ryaml -e '
+              config = YAML.safe_load_file(ARGV.fetch(0), aliases: true)
+              abort "blocklist is configured but its vectors are not enabled" if config.key?("blocklist")
+            ' "$1"
+          }
+
+          pipelock check --config pipelock.example.yaml
+          assert_no_blocklist pipelock.example.yaml
+          vector_categories="dlp,entropy,scheme,response_injection,mcp_response,mcp_input,mcp_tools,clean"
+          pipelock test --fail-on-gap --category "${vector_categories}" --config pipelock.example.yaml
+          docker compose -f compose.example.ai.yml config --quiet
+
+          external_services="$(docker compose -f compose.example.ai.yml --profile external-assistant config --services)"
+          grep -qx 'openclaw' <<<"${external_services}"
+          if grep -Eqx 'ollama|ollama-webui' <<<"${external_services}"; then
+            echo "::error::External assistant profile exposes local AI services"
+            exit 1
+          fi
+
+          rendered_config="${RUNNER_TEMP}/sure-pipelock.yaml"
+          helm template sure charts/sure \
+            --kube-version 1.25.0 \
+            --set pipelock.enabled=true \
+            --show-only templates/pipelock-configmap.yaml \
+            | awk '/pipelock.yaml: \|/{copy=1; next} copy{sub(/^    /, ""); print}' \
+            > "${rendered_config}"
+          test -s "${rendered_config}"
+          pipelock check --config "${rendered_config}"
+          assert_no_blocklist "${rendered_config}"
+          pipelock test --fail-on-gap --category "${vector_categories}" --config "${rendered_config}"
+
+          helm template sure charts/sure \
+            --set rails.externalAssistant.enabled=true \
+            --set rails.externalAssistant.url=https://agent.vendor.example/v1/chat \
+            --set pipelock.enabled=true \
+            >/dev/null
+
+          if rejection_output="$(helm template sure charts/sure \
+            --set rails.externalAssistant.enabled=true \
+            --set rails.externalAssistant.url=https://agent.vendor.example/v1/chat \
+            --set pipelock.enabled=false \
+            2>&1)"; then
+            echo "::error::External assistant rendered without Pipelock"
+            exit 1
+          fi
+          expected_rejection="pipelock.requireForExternalAssistant is true but pipelock.enabled is false"
+          if ! grep -Fq "${expected_rejection}" <<<"${rejection_output}"; then
+            echo "::error::External assistant failed for an unexpected reason"
+            printf '%s\n' "${rejection_output}"
+            exit 1
+          fi
+
+          helm template sure charts/sure \
+            --set rails.externalAssistant.enabled=true \
+            --set rails.externalAssistant.url=https://agent.vendor.example/v1/chat \
+            --set pipelock.enabled=false \
+            --set pipelock.requireForExternalAssistant=false \
+            >/dev/null
+
+      # The checks above validate config files; this one starts the pinned image
+      # with the exact arguments Compose and Helm deploy, so flag changes in a
+      # Pipelock upgrade fail here instead of at a user's first boot.
+      - name: Start Pipelock with the deployed arguments
+        shell: bash
+        env:
+          # Only needed to render compose.example.ai.yml; nothing here uses it.
+          SECRET_KEY_BASE: ci-validation-placeholder-not-a-real-secret
+        run: |
+          set -euo pipefail
+
+          start_and_check() {
+            local label="$1" config="$2" image="$3"; shift 3
+            local name="pipelock-contract-${label}"
+            docker run -d --name "${name}" \
+              -v "${config}:/etc/pipelock/pipelock.yaml:ro" \
+              "${image}" "$@" >/dev/null
+            for _ in $(seq 1 30); do
+              if docker exec "${name}" /pipelock healthcheck --addr 127.0.0.1:8888 >/dev/null 2>&1; then
+                echo "${label}: Pipelock is healthy"
+                docker rm -f "${name}" >/dev/null
+                return 0
+              fi
+              if [ "$(docker inspect -f '{{.State.Running}}' "${name}")" != "true" ]; then
+                break
+              fi
+              sleep 1
+            done
+            echo "::error::${label}: Pipelock did not start with the deployed arguments"
+            docker logs "${name}" || true
+            docker rm -f "${name}" >/dev/null || true
+            return 1
+          }
+
+          compose_json="$(docker compose -f compose.example.ai.yml config --format json)"
+          compose_image="$(jq -r '.services.pipelock.image' <<<"${compose_json}")"
+          mapfile -t compose_args < <(jq -r '.services.pipelock.command[]' <<<"${compose_json}")
+          start_and_check compose "${PWD}/pipelock.example.yaml" "${compose_image}" "${compose_args[@]}"
+
+          chart_config="${RUNNER_TEMP}/sure-chart-pipelock.yaml"
+          chart_deployment="${RUNNER_TEMP}/sure-chart-pipelock-deployment.yaml"
+          helm template sure charts/sure --kube-version 1.25.0 --set pipelock.enabled=true \
+            --show-only templates/pipelock-configmap.yaml \
+            | awk '/pipelock.yaml: \|/{copy=1; next} copy{sub(/^    /, ""); print}' > "${chart_config}"
+          helm template sure charts/sure --kube-version 1.25.0 --set pipelock.enabled=true \
+            --show-only templates/pipelock-deployment.yaml > "${chart_deployment}"
+          chart_image="$(ruby -ryaml -e 'puts YAML.safe_load_file(ARGV[0]).dig("spec", "template", "spec", "containers", 0, "image")' "${chart_deployment}")"
+          mapfile -t chart_args < <(ruby -ryaml -e 'puts YAML.safe_load_file(ARGV[0]).dig("spec", "template", "spec", "containers", 0, "args")' "${chart_deployment}")
+          start_and_check helm "${chart_config}" "${chart_image}" "${chart_args[@]}"

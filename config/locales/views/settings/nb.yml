@@ -1,0 +1,33 @@
+---
+nb:
+  settings:
+    encryption_migration_guide: Veiledning for oppsett av kryptering og migrering
+    settings_nav:
+      accounts_label: Kontoer
+      api_key_label: API-nøkkel
+      advanced_section_title: Avansert
+      payment_label: Betaling
+      categories_label: Kategorier
+      feedback_label: Tilbakemelding
+      general_section_title: Generelt
+      imports_label: Importer
+      exports_label: Eksporter
+      logout: Logg ut
+      merchants_label: Forhandlere
+      other_section_title: Mer
+      preferences_label: Preferanser
+      profile_label: Konto
+      rules_label: Regler
+      security_label: Sikkerhet
+      self_hosting_label: Selvhosting
+      tags_label: Tagger
+      transactions_section_title: Transaksjoner
+      whats_new_label: Hva er nytt
+    settings_nav_link_large:
+      next: Neste
+      previous: Tilbake
+    user_avatar_field:
+      accepted_formats: JPG eller PNG. 5MB maks.
+      choose: Last opp bilde
+      choose_label: (valgfritt)
+      change: Endre bilde

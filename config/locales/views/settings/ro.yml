@@ -1,0 +1,39 @@
+---
+ro:
+  settings:
+    encryption_migration_guide: Ghid de configurare a criptării și de migrare
+    settings_nav:
+      accounts_label: Conturi
+      advanced_section_title: Avansat
+      ai_prompts_label: Prompturi AI
+      auto_matches_label: Potriviri automate
+      api_key_label: Cheie API
+      payment_label: Plată
+      categories_label: Categorii
+      feedback_label: Feedback
+      general_section_title: General
+      imports_label: Importuri
+      exports_label: Exporturi
+      logout: Logout
+      merchants_label: Comercianți
+      guides_label: Ghiduri
+      other_section_title: Mai multe
+      preferences_label: Preferințe
+      profile_label: Informații profil
+      recurring_transactions_label: Recurente
+      rules_label: Reguli
+      security_label: Securitate
+      self_hosting_label: Găzduire proprie
+      tags_label: Etichete
+      transactions_section_title: Tranzacții
+      whats_new_label: Noutăți
+      api_keys_label: Cheie API
+      bank_sync_label: Sincronizare bancară
+    settings_nav_link_large:
+      next: Următorul
+      previous: Înapoi
+    user_avatar_field:
+      accepted_formats: JPG sau PNG. Max. 5MB.
+      choose: Încarcă fotografie
+      choose_label: (opțional)
+      change: Schimbă fotografia

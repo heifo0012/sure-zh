@@ -1,0 +1,45 @@
+<%# Renders a breakdown table for income or expense groups %>
+<%# Local variables: groups, total, type (:income or :expense), amount_sort_params, current_sort_by, current_sort_direction, start_date, end_date %>
+
+<%
+  color_class = type == :income ? "text-success" : "text-primary"
+  icon_name = type == :income ? "trending-up" : "trending-down"
+  title_key = type == :income ? "reports.transactions_breakdown.table.income" : "reports.transactions_breakdown.table.expense"
+%>
+
+<div>
+  <div class="text-large mb-4 flex items-center gap-2 text-lg">
+    <%= icon(icon_name, class: "w-5 h-5") %>
+    <span><%= t(title_key) %>:</span>
+    <span class="font-medium text-secondary <%= color_class %> privacy-sensitive"> <%= Money.new(total, Current.family.currency).format %></span>
+  </div>
+
+  <%
+    rows = groups.flat_map do |group|
+      [ group.merge(level: :category), *Array(group[:subcategories]).map { |subcategory| subcategory.merge(level: :subcategory) } ]
+    end.map { |item| item.merge(href: breakdown_transactions_path(item, start_date, end_date)) }
+    amount_header = link_to reports_path(amount_sort_params), class: "inline-flex items-center gap-1 hover:text-primary" do
+      concat t("reports.transactions_breakdown.table.amount")
+      concat icon(current_sort_direction == "desc" ? "chevron-down" : "chevron-up", class: "w-3 h-3") if current_sort_by == "amount"
+    end
+    link_options = { class: "block", data: { turbo_frame: "_top", turbo_prefetch: false } }
+  %>
+
+  <%= render DS::Table.new(
+        rows: rows,
+        inset: true,
+        label: t(title_key),
+        row_class: ->(_item) { "text-secondary group/category-row" },
+        row_opts: ->(item) { { data: { category: "category-#{item[:category_id]}" } } }
+      ) do |table| %>
+    <% table.with_column(t("reports.transactions_breakdown.table.category")) do |item| %>
+      <%= render "reports/category_name", item: item %>
+    <% end %>
+    <% table.with_column(amount_header, numeric: true) do |item| %>
+      <%= link_to_if item[:href], tag.span(Money.new(item[:total], Current.family.currency).format, class: "#{color_class} privacy-sensitive"), item[:href], link_options %>
+    <% end %>
+    <% table.with_column(t("reports.transactions_breakdown.table.percentage"), numeric: true) do |item| %>
+      <%= link_to_if item[:href], "#{total.zero? ? 0 : (item[:total].to_f / total * 100).round(1)}%", item[:href], link_options %>
+    <% end %>
+  <% end %>
+</div>

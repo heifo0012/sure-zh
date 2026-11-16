@@ -1,0 +1,46 @@
+---
+vi:
+  settings:
+    encryption_migration_guide: Hướng dẫn thiết lập mã hóa và di chuyển dữ liệu
+    settings_nav:
+      accounts_label: Tài khoản
+      advanced_section_title: Nâng cao
+      ai_prompts_label: Câu lệnh AI
+      auto_matches_label: Tự động khớp lệnh chuyển khoản
+      api_key_label: Khóa API
+      payment_label: Thanh toán
+      categories_label: Danh mục
+      feedback_label: Phản hồi
+      general_section_title: Chung
+      imports_label: Nhập dữ liệu
+      exports_label: Xuất dữ liệu
+      llm_usage_label: Sử dụng LLM
+      logout: Đăng xuất
+      merchants_label: Nhà cung cấp
+      providers_label: Nhà cung cấp dịch vụ
+      guides_label: Hướng dẫn
+      other_section_title: Thêm
+      preferences_label: Tùy chọn
+      profile_label: Thông tin hồ sơ
+      recurring_transactions_label: Định kỳ
+      rules_label: Quy tắc
+      security_label: Bảo mật
+      self_hosting_label: Tự lưu trữ
+      sso_providers_label: Nhà cung cấp SSO
+      statement_vault_label: Kho sao kê
+      tags_label: Nhãn
+      transactions_section_title: Giao dịch
+      users_label: Người dùng
+      whats_new_label: Có gì mới
+      api_keys_label: Khóa API
+      appearance_label: Giao diện
+      bank_sync_label: Đồng bộ ngân hàng
+      debug_label: Gỡ lỗi
+    settings_nav_link_large:
+      next: Tiếp theo
+      previous: Quay lại
+    user_avatar_field:
+      accepted_formats: JPG hoặc PNG. Tối đa 5MB.
+      choose: Tải ảnh lên
+      choose_label: (tùy chọn)
+      change: Thay đổi ảnh

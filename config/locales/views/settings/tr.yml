@@ -1,0 +1,49 @@
+---
+tr:
+  settings:
+    encryption_migration_guide: Şifreleme kurulumu ve geçiş kılavuzu
+    settings_nav:
+      accounts_label: Hesaplar
+      advanced_section_title: Gelişmiş
+      ai_prompts_label: Yapay Zeka İstemleri
+      auto_matches_label: Otomatik Eşleştirme
+      api_key_label: API Anahtarı
+      api_keys_label: API Anahtarları
+      appearance_label: Görünüm
+      bank_sync_label: Banka senkronizasyonu
+      categories_label: Kategoriler
+      debug_label: Hata Ayıklama
+      exports_label: Dışa Aktarımlar
+      feedback_label: Geri Bildirim
+      general_section_title: Genel
+      guides_label: Rehberler
+      imports_label: İçe Aktarımlar
+      llm_usage_label: LLM Kullanımı
+      logout: Çıkış Yap
+      mcp_label: MCP
+      merchants_label: Satıcılar
+      other_section_title: Diğer
+      payment_label: Ödeme
+      preferences_label: Tercihler
+      profile_label: Hesap
+      providers_label: Sağlayıcılar
+      recurring_transactions_label: Yinelenen
+      rules_label: Kurallar
+      security_label: Güvenlik
+      self_hosting_label: Kendi Sunucunda Barındırma
+      sso_providers_label: SSO Sağlayıcıları
+      statement_vault_label: Ekstre Kasası
+      tags_label: Etiketler
+      transactions_section_title: İşlemler
+      users_label: Kullanıcılar
+      whats_new_label: Yenilikler
+      background_jobs_label: Arka plan işleri
+      system_health_label: Sistem durumu
+    settings_nav_link_large:
+      next: Sonraki
+      previous: Geri
+    user_avatar_field:
+      accepted_formats: JPG veya PNG. Maksimum 5MB.
+      change: Fotoğrafı değiştir
+      choose: Fotoğraf yükle
+      choose_label: "(isteğe bağlı)"

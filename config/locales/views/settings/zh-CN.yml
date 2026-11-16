@@ -1,0 +1,50 @@
+---
+zh-CN:
+  settings:
+    encryption_migration_guide: 加密配置与数据迁移指南
+    settings_nav:
+      accounts_label: 账户
+      advanced_section_title: 高级
+      ai_prompts_label: AI 提示词
+      auto_matches_label: 自动匹配
+      api_key_label: API 密钥
+      payment_label: 付款
+      categories_label: 分类
+      feedback_label: 反馈
+      general_section_title: 常规
+      imports_label: 导入
+      exports_label: 导出
+      llm_usage_label: LLM 用量
+      logout: 退出登录
+      merchants_label: 商户
+      providers_label: 提供商
+      guides_label: 指南
+      other_section_title: 更多
+      preferences_label: 偏好设置
+      profile_label: 个人资料信息
+      recurring_transactions_label: 循环交易
+      rules_label: 规则
+      security_label: 安全性
+      self_hosting_label: 自托管
+      sso_providers_label: SSO 提供商
+      statement_vault_label: 对账单库
+      tags_label: 标签
+      transactions_section_title: 交易
+      users_label: 用户
+      whats_new_label: 有什么新内容
+      api_keys_label: API 密钥
+      appearance_label: 外观
+      bank_sync_label: 银行同步
+      debug_label: 调试
+      classifier_label: 分类器
+      background_jobs_label: 后台任务
+      mcp_label: MCP
+      system_health_label: 系统健康状况
+    settings_nav_link_large:
+      next: 下一步
+      previous: 返回
+    user_avatar_field:
+      accepted_formats: JPG 或 PNG，最大 5MB
+      choose: 上传照片
+      choose_label: （可选）
+      change: 更改照片

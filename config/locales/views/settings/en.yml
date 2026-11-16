@@ -1,0 +1,50 @@
+---
+en:
+  settings:
+    encryption_migration_guide: Encryption setup and migration guide
+    settings_nav:
+      accounts_label: Accounts
+      advanced_section_title: Advanced
+      ai_prompts_label: AI Prompts
+      auto_matches_label: Auto Matches
+      classifier_label: Classifier
+      background_jobs_label: Background jobs
+      api_key_label: API Keys
+      payment_label: Payment
+      categories_label: Categories
+      feedback_label: Feedback
+      general_section_title: General
+      imports_label: Imports
+      exports_label: Exports
+      llm_usage_label: LLM Usage
+      logout: Logout
+      merchants_label: Merchants
+      providers_label: Providers
+      guides_label: Guides
+      other_section_title: More
+      preferences_label: Preferences
+      profile_label: Profile Info
+      recurring_transactions_label: Recurring
+      rules_label: Rules
+      mcp_label: MCP
+      security_label: Security
+      self_hosting_label: Self-Hosting
+      sso_providers_label: SSO Providers
+      statement_vault_label: Statement Vault
+      system_health_label: System health
+      tags_label: Tags
+      transactions_section_title: Transactions
+      users_label: Users
+      whats_new_label: What's new
+      api_keys_label: API Keys
+      appearance_label: Appearance
+      bank_sync_label: Bank sync
+      debug_label: Debug
+    settings_nav_link_large:
+      next: Next
+      previous: Back
+    user_avatar_field:
+      accepted_formats: JPG or PNG. 5MB max.
+      choose: Upload photo
+      choose_label: (optional)
+      change: Change photo

@@ -1,0 +1,620 @@
+require "test_helper"
+
+class TransactionImportTest < ActiveSupport::TestCase
+  include ActiveJob::TestHelper, ImportInterfaceTest
+
+  setup do
+    @subject = @import = imports(:transaction)
+  end
+
+  test "presets the export settings for a Sure transactions.csv export" do
+    @import.amount_type_strategy = "custom_column"
+    @import.raw_file_str = "\uFEFF#{Family::DataExporter::TRANSACTIONS_CSV_HEADERS.join(",").upcase},counterparty_iban\n2024-05-15,Checking,42.5,Grocery,,,,USD,\n"
+
+    @import.preset_for_uploaded_csv
+
+    assert_equal "signed_amount", @import.amount_type_strategy
+    assert_equal "inflows_negative", @import.signage_convention
+    assert_equal "%Y-%m-%d", @import.date_format
+    assert_equal "1,234.56", @import.number_format
+  end
+
+  test "does not treat the transaction import template as a Sure export" do
+    @import.raw_file_str = @import.csv_template.to_csv
+
+    @import.preset_for_uploaded_csv
+
+    assert_equal "inflows_positive", @import.signage_convention
+  end
+
+  test "keeps a chosen sign convention when one non-Sure CSV replaces another" do
+    @import.update!(raw_file_str: "date,amount,payee\n2024-05-14,-10,Coffee\n", signage_convention: "inflows_negative")
+    @import.raw_file_str = "date,amount,name\n2024-05-15,-42.5,Grocery\n"
+
+    @import.preset_for_uploaded_csv
+
+    assert_equal "inflows_negative", @import.signage_convention
+  end
+
+  test "restores the default sign convention when a Sure export is replaced by another CSV" do
+    @import.update!(raw_file_str: "#{Family::DataExporter::TRANSACTIONS_CSV_HEADERS.join(",")}\n2024-05-15,Checking,42.5,Grocery,,,,USD\n")
+    @import.update!(TransactionImport::SURE_EXPORT_SETTINGS)
+    @import.family.update!(date_format: "%d.%m.%Y")
+    @import.assign_attributes(raw_file_str: "date;amount;name\n2024-05-15;-42,5;Grocery\n", col_sep: ";")
+
+    @import.preset_for_uploaded_csv
+
+    assert_equal "signed_amount", @import.amount_type_strategy
+    assert_equal "inflows_positive", @import.signage_convention
+    assert_equal "%d.%m.%Y", @import.date_format
+  end
+
+  test "keeps the Sure export sign convention when a template from another import is applied" do
+    template = imports(:transaction).dup
+    template.update!(status: "complete", signage_convention: "inflows_positive", date_format: "%m/%d/%Y", rows_to_skip: 2, date_col_label: "Buchungstag", amount_col_label: "Betrag")
+    @import = families(:dylan_family).imports.create!(type: "TransactionImport", raw_file_str: "#{Family::DataExporter::TRANSACTIONS_CSV_HEADERS.join(",")}\n2024-05-15,Checking,42.5,Grocery,,,,USD\n")
+
+    @import.apply_template!(template)
+
+    assert_equal "inflows_negative", @import.reload.signage_convention
+    assert_equal "%Y-%m-%d", @import.date_format
+    assert_equal 0, @import.rows_to_skip
+    assert_equal "date", @import.date_col_label
+    assert_equal "amount", @import.amount_col_label
+  end
+
+  test "recognises a Sure export after leading blank lines" do
+    @import.raw_file_str = "\n\n#{Family::DataExporter::TRANSACTIONS_CSV_HEADERS.join(",")}\n2024-05-15,Checking,42.5,Grocery,,,,USD\n"
+
+    @import.preset_for_uploaded_csv
+
+    assert_equal "inflows_negative", @import.signage_convention
+  end
+
+  test "maps template labels to the export's own header spelling" do
+    template = imports(:transaction).dup
+    template.update!(status: "complete", date_col_label: "Buchungstag")
+    headers = Family::DataExporter::TRANSACTIONS_CSV_HEADERS.map(&:capitalize)
+    @import = families(:dylan_family).imports.create!(type: "TransactionImport", raw_file_str: "\uFEFF#{headers.join(",")}\n2024-05-15,Checking,42.5,Grocery,,,,USD\n")
+
+    @import.apply_template!(template)
+
+    assert_equal "\uFEFFDate", @import.reload.date_col_label
+    assert_equal "Amount", @import.amount_col_label
+    assert_equal "2024-05-15", @import.csv_rows.first[@import.date_col_label]
+  end
+
+  test "recognises a Sure export whose extra header holds a quoted line break" do
+    @import.raw_file_str = "#{Family::DataExporter::TRANSACTIONS_CSV_HEADERS.join(",")},\"counterparty\nIBAN\"\n2024-05-15,Checking,42.5,Grocery,,,,USD,\n"
+
+    @import.preset_for_uploaded_csv
+
+    assert_equal "inflows_negative", @import.signage_convention
+  end
+
+  test "maps template labels from the export's header even when rows were skipped before" do
+    template = imports(:transaction).dup
+    template.update!(status: "complete")
+    @import = families(:dylan_family).imports.create!(type: "TransactionImport", rows_to_skip: 1,
+      raw_file_str: "#{Family::DataExporter::TRANSACTIONS_CSV_HEADERS.map(&:capitalize).join(",")}\n2024-05-15,Checking,42.5,Grocery,,,,USD\n")
+
+    @import.apply_template!(template)
+
+    assert_equal 0, @import.reload.rows_to_skip
+    assert_equal "Date", @import.date_col_label
+    assert_equal "Account_name", @import.account_col_label
+  end
+
+  test "ignores blank and unparseable CSV headers when presetting the sign convention" do
+    @import.raw_file_str = "\"date,\"amount\n"
+
+    assert_nothing_raised { @import.preset_for_uploaded_csv }
+    assert_equal "inflows_positive", @import.signage_convention
+  end
+
+  test "uploaded? if raw_file_str is present" do
+    @import.expects(:raw_file_str).returns("test").once
+    assert @import.uploaded?
+  end
+
+  test "configured? if uploaded and rows are generated" do
+    @import.expects(:uploaded?).returns(true).once
+    @import.expects(:rows_count).returns(1).once
+    assert @import.configured?
+  end
+
+  test "cleaned? if rows are generated and valid" do
+    @import.expects(:configured?).returns(true).once
+    assert @import.cleaned?
+  end
+
+  test "publishable? if cleaned and mappings are valid" do
+    @import.expects(:cleaned?).returns(true).once
+    assert @import.publishable?
+  end
+
+  test "imports transactions, categories, tags, and accounts" do
+    import = <<~CSV
+      date,name,amount,category,tags,account,notes
+      01/01/2024,Txn1,100,TestCategory1,TestTag1,TestAccount1,notes1
+      01/02/2024,Txn2,200,TestCategory2,TestTag1|TestTag2,TestAccount2,notes2
+      01/03/2024,Txn3,300,,,,notes3
+    CSV
+
+    @import.update!(
+      raw_file_str: import,
+      date_col_label: "date",
+      amount_col_label: "amount",
+      date_format: "%m/%d/%Y"
+    )
+
+    @import.generate_rows_from_csv
+
+    @import.mappings.create! key: "TestCategory1", create_when_empty: true, type: "Import::CategoryMapping"
+    @import.mappings.create! key: "TestCategory2", mappable: categories(:food_and_drink), type: "Import::CategoryMapping"
+    @import.mappings.create! key: "", create_when_empty: false, mappable: nil, type: "Import::CategoryMapping" # Leaves uncategorized
+
+    @import.mappings.create! key: "TestTag1", create_when_empty: true, type: "Import::TagMapping"
+    @import.mappings.create! key: "TestTag2", mappable: tags(:one), type: "Import::TagMapping"
+    @import.mappings.create! key: "", create_when_empty: false, mappable: nil, type: "Import::TagMapping" # Leaves untagged
+
+    @import.mappings.create! key: "TestAccount1", create_when_empty: true, type: "Import::AccountMapping"
+    @import.mappings.create! key: "TestAccount2", mappable: accounts(:depository), type: "Import::AccountMapping"
+    @import.mappings.create! key: "", mappable: accounts(:depository), type: "Import::AccountMapping"
+
+    @import.reload
+
+    assert_difference -> { Entry.count } => 3,
+                      -> { Transaction.count } => 3,
+                      -> { Tag.count } => 1,
+                      -> { Category.count } => 1,
+                      -> { Account.count } => 1 do
+      @import.publish
+    end
+
+    assert_equal "complete", @import.status
+  end
+
+  test "imports transactions with separate type column for signage convention" do
+    import = <<~CSV
+      date,amount,amount_type
+      01/01/2024,100,debit
+      01/02/2024,200,credit
+      01/03/2024,300,debit
+    CSV
+
+    @import.update!(
+      account: accounts(:depository),
+      raw_file_str: import,
+      date_col_label: "date",
+      date_format: "%m/%d/%Y",
+      amount_col_label: "amount",
+      entity_type_col_label: "amount_type",
+      amount_type_identifier_value: "debit",
+      amount_type_inflow_value: "inflows_positive",
+      amount_type_strategy: "custom_column",
+      signage_convention: nil # Explicitly set to nil to prove this is not needed
+    )
+
+    @import.generate_rows_from_csv
+
+    @import.reload
+
+    assert_difference -> { Entry.count } => 3,
+                      -> { Transaction.count } => 3 do
+      @import.publish
+    end
+
+    assert_equal [ -100, 200, -300 ], @import.entries.order(:date).map(&:amount)
+  end
+
+  test "csv_template uses ISO dates" do
+    first_row = @import.csv_template.first
+
+    assert_equal "2024-05-15", first_row["date*"]
+  end
+
+  test "generates rows from legacy account_name header with template labels" do
+    import_csv = <<~CSV
+      date,account_name,amount,name
+      2024-05-15,Checking Account,42.50,Legacy Export Row
+    CSV
+
+    @import.update!(
+      raw_file_str: import_csv,
+      date_col_label: "date*",
+      amount_col_label: "amount*",
+      name_col_label: "name",
+      account_col_label: "account",
+      date_format: "%Y-%m-%d",
+      amount_type_strategy: "signed_amount",
+      signage_convention: "inflows_negative"
+    )
+
+    @import.generate_rows_from_csv
+    row = @import.rows.reload.first
+
+    assert row.valid?
+    assert_equal "Checking Account", row.account
+    assert_equal "2024-05-15", row.date
+    assert_equal BigDecimal("42.50"), row.signed_amount
+  end
+
+  test "generates rows from alias column when configured column value is blank" do
+    import_csv = <<~CSV
+      date*,account,account_name,amount,name
+      2024-05-15,,Checking Account,42.50,Legacy Export Row
+    CSV
+
+    @import.update!(
+      raw_file_str: import_csv,
+      date_col_label: "date*",
+      amount_col_label: "amount*",
+      name_col_label: "name",
+      account_col_label: "account",
+      date_format: "%Y-%m-%d",
+      amount_type_strategy: "signed_amount",
+      signage_convention: "inflows_negative"
+    )
+
+    @import.generate_rows_from_csv
+    row = @import.rows.reload.first
+
+    assert row.valid?
+    assert_equal "Checking Account", row.account
+  end
+
+  test "rejects duplicate normalized CSV headers" do
+    import_csv = <<~CSV
+      date,date*,amount,name
+      2024-05-15,2024-05-16,42.50,Duplicate Date Row
+    CSV
+
+    @import.update!(
+      raw_file_str: import_csv,
+      date_col_label: "date",
+      amount_col_label: "amount",
+      name_col_label: "name",
+      date_format: "%Y-%m-%d",
+      amount_type_strategy: "signed_amount",
+      signage_convention: "inflows_negative"
+    )
+
+    error = assert_raises(ActiveRecord::RecordInvalid) { @import.generate_rows_from_csv }
+
+    assert_includes error.record.errors.full_messages.to_sentence, "date, date*"
+  end
+
+  test "parses legacy comma tags and escaped pipe tags" do
+    assert_equal [ "groceries", "essentials" ], Import::Row.new(tags: "groceries,essentials").tags_list
+    assert_equal [ "Food, Dining", "essentials" ], Import::Row.new(tags: "Food\\, Dining,essentials").tags_list
+    assert_equal [ "Food|Dining" ], Import::Row.new(tags: "Food\\|Dining").tags_list
+    assert_equal [ "Food|Dining", "essentials" ], Import::Row.new(tags: "Food\\|Dining|essentials").tags_list
+  end
+
+  test "does not create duplicate when matching transaction exists with same name" do
+    account = accounts(:depository)
+
+    # Create an existing manual transaction
+    existing_entry = account.entries.create!(
+      date: Date.new(2024, 1, 1),
+      amount: 100,
+      currency: "USD",
+      name: "Coffee Shop",
+      entryable: Transaction.new(category: categories(:food_and_drink))
+    )
+
+    # Try to import a CSV with the same transaction
+    import_csv = <<~CSV
+      date,name,amount
+      01/01/2024,Coffee Shop,100
+    CSV
+
+    @import.update!(
+      account: account,
+      raw_file_str: import_csv,
+      date_col_label: "date",
+      amount_col_label: "amount",
+      name_col_label: "name",
+      date_format: "%m/%d/%Y",
+      amount_type_strategy: "signed_amount",
+      signage_convention: "inflows_negative"
+    )
+
+    @import.generate_rows_from_csv
+    @import.reload
+
+    # Should not create a new entry, should update the existing one
+    assert_no_difference -> { Entry.count } do
+      assert_no_difference -> { Transaction.count } do
+        @import.publish
+      end
+    end
+
+    # The existing entry is updated but stays owned by whoever created it
+    assert_nil existing_entry.reload.import_id
+    assert existing_entry.import_locked?
+  end
+
+  test "revert keeps a pre-existing entry the import matched as a duplicate" do
+    account = accounts(:depository)
+    existing_entry = account.entries.create!(
+      date: Date.new(2024, 1, 1),
+      amount: 100,
+      currency: "USD",
+      name: "Coffee Shop",
+      entryable: Transaction.new
+    )
+
+    @import.update!(
+      account: account,
+      raw_file_str: "date,name,amount\n01/01/2024,Coffee Shop,100\n01/02/2024,Bakery,20\n",
+      date_col_label: "date",
+      amount_col_label: "amount",
+      name_col_label: "name",
+      date_format: "%m/%d/%Y",
+      amount_type_strategy: "signed_amount",
+      signage_convention: "inflows_negative"
+    )
+    @import.generate_rows_from_csv
+    @import.reload
+    @import.publish
+    assert @import.reload.complete?
+
+    assert_difference -> { Entry.count } => -1 do
+      @import.revert
+    end
+
+    assert Entry.exists?(existing_entry.id), "revert must not destroy an entry the import did not create"
+    assert_not account.entries.exists?(name: "Bakery")
+  end
+
+  test "creates new transaction when name differs even if date and amount match" do
+    account = accounts(:depository)
+
+    # Create an existing manual transaction
+    existing_entry = account.entries.create!(
+      date: Date.new(2024, 1, 1),
+      amount: 100,
+      currency: "USD",
+      name: "Coffee Shop",
+      entryable: Transaction.new
+    )
+
+    # Try to import a CSV with same date/amount but different name
+    import_csv = <<~CSV
+      date,name,amount
+      01/01/2024,Different Store,100
+    CSV
+
+    @import.update!(
+      account: account,
+      raw_file_str: import_csv,
+      date_col_label: "date",
+      amount_col_label: "amount",
+      name_col_label: "name",
+      date_format: "%m/%d/%Y",
+      amount_type_strategy: "signed_amount",
+      signage_convention: "inflows_negative"
+    )
+
+    @import.generate_rows_from_csv
+    @import.reload
+
+    # Should create a new entry because the name is different
+    assert_difference -> { Entry.count } => 1,
+                      -> { Transaction.count } => 1 do
+      @import.publish
+    end
+
+    # Both transactions should exist
+    assert_equal 2, account.entries.where(date: Date.new(2024, 1, 1), amount: 100).count
+  end
+
+  test "imports all identical transactions from CSV even when one exists in database" do
+    account = accounts(:depository)
+
+    # Create an existing manual transaction
+    existing_entry = account.entries.create!(
+      date: Date.new(2024, 1, 1),
+      amount: 50,
+      currency: "USD",
+      name: "Vending Machine",
+      entryable: Transaction.new
+    )
+
+    # Import CSV with 3 identical transactions (e.g., buying from vending machine 3 times)
+    import_csv = <<~CSV
+      date,name,amount
+      01/01/2024,Vending Machine,50
+      01/01/2024,Vending Machine,50
+      01/01/2024,Vending Machine,50
+    CSV
+
+    @import.update!(
+      account: account,
+      raw_file_str: import_csv,
+      date_col_label: "date",
+      amount_col_label: "amount",
+      name_col_label: "name",
+      date_format: "%m/%d/%Y",
+      amount_type_strategy: "signed_amount",
+      signage_convention: "inflows_negative"
+    )
+
+    @import.generate_rows_from_csv
+    @import.reload
+
+    # Should update 1 existing and create 2 new (total of 3 in system)
+    # The first matching row claims the existing entry, the other 2 create new ones
+    assert_difference -> { Entry.count } => 2,
+                      -> { Transaction.count } => 2 do
+      @import.publish
+    end
+
+    # Should have exactly 3 identical transactions total
+    assert_equal 3, account.entries.where(
+      date: Date.new(2024, 1, 1),
+      amount: 50,
+      name: "Vending Machine"
+    ).count
+
+    # The existing entry stays owned by whoever created it
+    assert_nil existing_entry.reload.import_id
+  end
+
+  test "imports all identical transactions from CSV when none exist in database" do
+    account = accounts(:depository)
+
+    # Import CSV with 3 identical transactions (no existing entry in database)
+    import_csv = <<~CSV
+      date,name,amount
+      01/01/2024,Vending Machine,50
+      01/01/2024,Vending Machine,50
+      01/01/2024,Vending Machine,50
+    CSV
+
+    @import.update!(
+      account: account,
+      raw_file_str: import_csv,
+      date_col_label: "date",
+      amount_col_label: "amount",
+      name_col_label: "name",
+      date_format: "%m/%d/%Y",
+      amount_type_strategy: "signed_amount",
+      signage_convention: "inflows_negative"
+    )
+
+    @import.generate_rows_from_csv
+    @import.reload
+
+    # Should create all 3 as new transactions
+    assert_difference -> { Entry.count } => 3,
+                      -> { Transaction.count } => 3 do
+      @import.publish
+    end
+
+    # Should have exactly 3 identical transactions
+    assert_equal 3, account.entries.where(
+      date: Date.new(2024, 1, 1),
+      amount: 50,
+      name: "Vending Machine"
+    ).count
+  end
+
+  test "uses family currency as fallback when account has no currency and no CSV currency column" do
+    account = accounts(:depository)
+    family = account.family
+
+    # Clear the account's currency to simulate an account without currency set
+    account.update_column(:currency, nil)
+
+    import_csv = <<~CSV
+      date,name,amount
+      01/01/2024,Test Transaction,100
+    CSV
+
+    @import.update!(
+      account: account,
+      raw_file_str: import_csv,
+      date_col_label: "date",
+      amount_col_label: "amount",
+      name_col_label: "name",
+      date_format: "%m/%d/%Y",
+      amount_type_strategy: "signed_amount",
+      signage_convention: "inflows_negative"
+    )
+
+    @import.generate_rows_from_csv
+    @import.reload
+
+    assert_difference -> { Entry.count } => 1 do
+      @import.publish
+    end
+
+    # The transaction should have the family's currency as fallback
+    entry = @import.entries.first
+    assert_equal family.currency, entry.currency
+  end
+
+  test "does not raise error when all accounts are properly mapped" do
+    # Import CSV with multiple accounts, all mapped
+    import_csv = <<~CSV
+      date,name,amount,account
+      01/01/2024,Coffee Shop,100,Checking Account
+      01/02/2024,Grocery Store,200,Credit Card
+    CSV
+
+    checking = accounts(:depository)
+    credit_card = accounts(:credit_card)
+
+    @import.update!(
+      account: nil,
+      raw_file_str: import_csv,
+      date_col_label: "date",
+      amount_col_label: "amount",
+      name_col_label: "name",
+      account_col_label: "account",
+      date_format: "%m/%d/%Y",
+      amount_type_strategy: "signed_amount",
+      signage_convention: "inflows_negative"
+    )
+
+    @import.generate_rows_from_csv
+
+    # Map both accounts
+    @import.mappings.create!(key: "Checking Account", mappable: checking, type: "Import::AccountMapping")
+    @import.mappings.create!(key: "Credit Card", mappable: credit_card, type: "Import::AccountMapping")
+    @import.mappings.create!(key: "", mappable: nil, create_when_empty: false, type: "Import::CategoryMapping")
+    @import.mappings.create!(key: "", mappable: nil, create_when_empty: false, type: "Import::TagMapping")
+
+    @import.reload
+
+    # Should succeed without errors
+    assert_difference -> { Entry.count } => 2,
+                      -> { Transaction.count } => 2 do
+      @import.publish
+    end
+
+    assert_equal "complete", @import.status
+
+    # Check that each account got one entry from this import
+    assert_equal 1, checking.entries.where(import: @import).count
+    assert_equal 1, credit_card.entries.where(import: @import).count
+  end
+
+  test "skips specified number of rows" do
+    account = accounts(:depository)
+    import_csv = <<~CSV
+      Some Metadata provided by bank
+      Generated on 2024-01-01
+      date,name,amount
+      01/01/2024,Transaction 1,100
+      01/02/2024,Transaction 2,200
+    CSV
+
+    @import.update!(
+      account: account,
+      raw_file_str: import_csv,
+      date_col_label: "date",
+      amount_col_label: "amount",
+      name_col_label: "name",
+      date_format: "%m/%d/%Y",
+      amount_type_strategy: "signed_amount",
+      signage_convention: "inflows_negative",
+      rows_to_skip: 2
+    )
+
+    @import.generate_rows_from_csv
+    @import.reload
+
+    # helper to check rows - assuming 2 valid rows
+    assert_equal 2, @import.rows.count
+
+    # Sort to ensure order
+    rows = @import.rows.order(date: :asc)
+
+    assert_equal "Transaction 1", rows.first.name
+    assert_equal "100", rows.first.amount
+  end
+end

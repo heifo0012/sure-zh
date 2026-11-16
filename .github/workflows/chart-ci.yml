@@ -1,0 +1,41 @@
+name: Chart CI
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - 'charts/**'
+      - '.github/workflows/chart-ci.yml'
+  push:
+    branches:
+      - main
+    paths:
+      - 'charts/**'
+      - '.github/workflows/chart-ci.yml'
+
+jobs:
+  helm-checks:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5.0.1
+        with:
+          persist-credentials: false
+
+      - name: Install Helm
+        uses: azure/setup-helm@dda3372f752e03dde6b3237bc9431cdc2f7a02a2 # v5.0.0
+
+      - name: Add chart dependencies repositories
+        run: |
+          helm repo add cloudnative-pg https://cloudnative-pg.github.io/charts
+          helm repo add ot-helm https://ot-container-kit.github.io/helm-charts
+          helm repo update
+
+      - name: Build chart dependencies
+        run: helm dependency build charts/sure
+
+      - name: Lint chart
+        run: helm lint charts/sure
+
+      - name: Render templates
+        run: helm template sure charts/sure --kube-version 1.25.0 >/tmp/sure-chart-rendered.yaml

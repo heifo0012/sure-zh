@@ -1,0 +1,49 @@
+---
+uk:
+  settings:
+    encryption_migration_guide: Посібник із налаштування шифрування та міграції
+    settings_nav:
+      accounts_label: Рахунки
+      advanced_section_title: Розширені
+      ai_prompts_label: Промпти ШІ
+      auto_matches_label: Автоматичне зіставлення
+      background_jobs_label: Фонові завдання
+      api_key_label: Ключі API
+      payment_label: Оплата
+      categories_label: Категорії
+      feedback_label: Зворотний зв'язок
+      general_section_title: Загальні
+      imports_label: Імпорт
+      exports_label: Експорт
+      llm_usage_label: Використання LLM
+      logout: Вийти
+      merchants_label: Продавці
+      providers_label: Постачальники
+      guides_label: Посібники
+      other_section_title: Більше
+      preferences_label: Уподобання
+      profile_label: Інформація про профіль
+      recurring_transactions_label: Повторювані
+      rules_label: Правила
+      mcp_label: MCP
+      security_label: Безпека
+      self_hosting_label: Самостійний хостинг
+      sso_providers_label: Постачальники SSO
+      statement_vault_label: Сховище виписок
+      tags_label: Теги
+      transactions_section_title: Транзакції
+      users_label: Користувачі
+      whats_new_label: Що нового
+      api_keys_label: Ключі API
+      appearance_label: Зовнішній вигляд
+      bank_sync_label: Синхронізація з банком
+      debug_label: Відладка
+      system_health_label: Стан системи
+    settings_nav_link_large:
+      next: Далі
+      previous: Назад
+    user_avatar_field:
+      accepted_formats: JPG або PNG. Макс. 5 МБ.
+      choose: Завантажити фото
+      choose_label: (необов'язково)
+      change: Змінити фото

@@ -1,0 +1,27 @@
+---
+de:
+  invitations:
+    accept_choice:
+      create_account: Neues Konto erstellen
+      existing_account_hint: Du hast bereits ein Konto? Bestehende Konten können über eine Einladung keinem anderen Haushalt beitreten.
+      joined_household: Du bist dem Haushalt beigetreten.
+      message: "%{inviter} hat dich eingeladen, als %{role} beizutreten."
+      title: "%{family} beitreten"
+    create:
+      failure: Einladung konnte nicht gesendet werden.
+      own_email: "Du kannst dich nicht selbst einladen."
+      success: Einladung erfolgreich gesendet.
+    destroy:
+      failure: Beim Entfernen der Einladung ist ein Problem aufgetreten.
+      not_authorized: Du bist nicht berechtigt, Einladungen zu verwalten.
+      success: Einladung erfolgreich entfernt.
+    new:
+      email_label: E-Mail-Adresse
+      email_placeholder: E-Mail-Adresse eingeben
+      role_admin: Administrator
+      role_guest: Gast
+      role_label: Rolle
+      role_member: Mitglied
+      submit: Einladung senden
+      subtitle: Lad jemanden in dein %{moniker}-Konto auf %{product_name} ein
+      title: Jemanden einladen

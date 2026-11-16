@@ -1,0 +1,51 @@
+<%# locals: (account:, url:) %>
+
+<%= render "accounts/form", account: account, url: url do |form| %>
+  <%= render "shared/ruler", classes: "my-4" %>
+
+  <div class="space-y-2">
+    <%= form.fields_for :accountable do |vehicle_form| %>
+      <div class="flex items-center gap-2">
+        <%= vehicle_form.text_field :make,
+                                  label: t("vehicles.form.make"),
+                                  placeholder: t("vehicles.form.make_placeholder") %>
+        <%= vehicle_form.text_field :model,
+                                  label: t("vehicles.form.model"),
+                                  placeholder: t("vehicles.form.model_placeholder") %>
+      </div>
+
+      <div class="flex items-center gap-2">
+        <%= vehicle_form.number_field :year,
+                                    label: t("vehicles.form.year"),
+                                    placeholder: t("vehicles.form.year_placeholder"),
+                                    min: 1900,
+                                    max: Time.current.year + 1 %>
+        <%= vehicle_form.number_field :mileage_value,
+                                    label: t("vehicles.form.mileage"),
+                                    placeholder: t("vehicles.form.mileage_placeholder"),
+                                    min: 0 %>
+        <%= vehicle_form.select :mileage_unit,
+                              [[t("vehicles.form.mileage_unit_miles"), "mi"], [t("vehicles.form.mileage_unit_kilometers"), "km"]],
+                              { label: t("vehicles.form.mileage_unit") } %>
+      </div>
+
+      <% unless account.linked? %>
+        <div class="flex items-center gap-2">
+          <%= vehicle_form.money_field :initial_balance,
+                                     label: t("vehicles.form.purchase_price"),
+                                     currency_value_override: account.currency,
+                                     currency_source: "select[name='account[currency]']",
+                                     value: vehicle_form.object.initial_balance || (vehicle_form.object.purchase_price.amount if account.persisted?),
+                                     hide_currency: true %>
+          <% if account.persisted? %>
+            <%= vehicle_form.hidden_field :initial_balance_shown,
+                                        value: vehicle_form.object.initial_balance_shown || vehicle_form.object.purchase_price.amount %>
+            <%= vehicle_form.date_field :purchase_date,
+                                      label: t("vehicles.form.purchase_date"),
+                                      value: vehicle_form.object.purchase_date || account.opening_anchor_date %>
+          <% end %>
+        </div>
+      <% end %>
+    <% end %>
+  </div>
+<% end %>

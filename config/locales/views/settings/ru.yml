@@ -1,0 +1,49 @@
+---
+ru:
+  settings:
+    encryption_migration_guide: Руководство по настройке шифрования и миграции
+    settings_nav:
+      accounts_label: Счета
+      advanced_section_title: Расширенные
+      ai_prompts_label: Запросы ИИ
+      auto_matches_label: Автоматическое сопоставление
+      api_key_label: API-ключи
+      api_keys_label: API-ключи
+      appearance_label: Внешний вид
+      bank_sync_label: Синхронизация с банком
+      categories_label: Категории
+      debug_label: Отладка
+      exports_label: Экспорт
+      feedback_label: Обратная связь
+      general_section_title: Общие
+      guides_label: Руководства
+      imports_label: Импорт
+      llm_usage_label: Использование LLM
+      logout: Выйти
+      mcp_label: MCP
+      merchants_label: Продавцы
+      other_section_title: Ещё
+      payment_label: Оплата
+      preferences_label: Предпочтения
+      profile_label: Информация о профиле
+      providers_label: Провайдеры
+      recurring_transactions_label: Регулярные
+      rules_label: Правила
+      security_label: Безопасность
+      self_hosting_label: Самостоятельный хостинг
+      sso_providers_label: Поставщики SSO
+      statement_vault_label: Хранилище выписок
+      tags_label: Теги
+      transactions_section_title: Операции
+      users_label: Пользователи
+      whats_new_label: Что нового
+      background_jobs_label: Фоновые задачи
+      system_health_label: Состояние системы
+    settings_nav_link_large:
+      next: Далее
+      previous: Назад
+    user_avatar_field:
+      accepted_formats: JPG или PNG. Максимум 5MB.
+      change: Изменить фото
+      choose: Загрузить фото
+      choose_label: "(необязательно)"

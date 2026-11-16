@@ -1,0 +1,23 @@
+<%# locals: (form:) %>
+<%# The list loads when the tab opens; until then hidden inputs keep the selected merchants in the form. %>
+<div data-controller="list-filter">
+  <%= render DS::SearchInput.new(
+        variant: :embedded,
+        placeholder: t(".filter_merchants"),
+        aria_label: t(".filter_merchants"),
+        data: {
+          list_filter_target: "input",
+          action: "input->list-filter#filter"
+        }
+      ) %>
+  <div class="my-2" id="list" data-list-filter-target="list">
+    <%= turbo_frame_tag "merchant_filter_options",
+          src: transactions_merchant_filter_path(merchants: @q[:merchants]),
+          loading: :lazy,
+          data: { action: "turbo:frame-load->list-filter#filter" } do %>
+      <% Array(@q[:merchants]).each do |value| %>
+        <%= hidden_field_tag "q[merchants][]", value, id: nil %>
+      <% end %>
+    <% end %>
+  </div>
+</div>

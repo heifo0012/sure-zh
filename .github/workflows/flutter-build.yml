@@ -1,0 +1,240 @@
+name: Flutter Mobile Build
+
+on:
+  workflow_call:
+    inputs:
+      app_version:
+        description: Selected mobile release version (v-prefix allowed)
+        required: false
+        type: string
+    outputs:
+      has_app_release_aab:
+        description: "Whether a signed release AAB artifact was produced"
+        value: ${{ jobs.build-android.outputs.has_app_release_aab }}
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build-android:
+    name: Build Android APK
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    # Shared across all callers, not scoped to the tag or caller workflow.
+    concurrency:
+      group: android-build-number
+      cancel-in-progress: false
+      queue: max
+    outputs:
+      has_app_release_aab: ${{ steps.check_secrets.outputs.has_keystore }}
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5.0.1
+        with:
+          persist-credentials: false
+
+      - name: Set up Java
+        uses: actions/setup-java@be666c2fcd27ec809703dec50e508c2fdc7f6654 # v5.2.0
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2 # v2.23.0
+        with:
+          flutter-version: '3.32.4'
+          channel: 'stable'
+          cache: true
+
+      - name: Resolve app version
+        shell: bash
+        env:
+          APP_VERSION_INPUT: ${{ inputs.app_version }}
+        run: |
+          set -euo pipefail
+          if [[ -n "$APP_VERSION_INPUT" ]]; then
+            version="${APP_VERSION_INPUT#v}"
+          elif [[ "$GITHUB_REF_TYPE" == tag && "$GITHUB_REF_NAME" == v* ]]; then
+            version="${GITHUB_REF_NAME#v}"
+          else
+            version="$(sed -n 's/^version: *//p' mobile/pubspec.yaml)"
+            version="${version%%+*}"
+          fi
+          printf '%s\n' "$version" > .sure-version
+          echo "SURE_BUILD_NAME=$version" >> "$GITHUB_ENV"
+
+      - name: Resolve Android build number
+        shell: bash
+        run: |
+          set -euo pipefail
+          # Seconds since 2020-01-01 UTC: newer than the legacy 20260402 code,
+          # with room below Google Play's limit until 2086. Allocate once per
+          # build attempt, not from the tag date or workflow-specific run number.
+          build_number=$(( $(date -u +%s) - 1577836800 ))
+          if (( build_number <= 20260402 || build_number > 2100000000 )); then
+            echo "::error::Android build number outside the supported range: $build_number"
+            exit 1
+          fi
+          echo "SURE_BUILD_NUMBER=$build_number" >> "$GITHUB_ENV"
+          echo "Android version code: $build_number"
+
+      - name: Get dependencies
+        working-directory: mobile
+        run: flutter pub get
+
+      - name: Copy Sure icons from public/
+        run: cp public/android-chrome-512x512.png mobile/assets/icon/app_icon.png
+
+      - name: Generate app icons
+        working-directory: mobile
+        run: flutter pub run flutter_launcher_icons
+
+      - name: Analyze code
+        working-directory: mobile
+        run: flutter analyze --no-fatal-infos
+
+      - name: Run tests
+        working-directory: mobile
+        run: flutter test
+
+      - name: Check if keystore secrets exist
+        id: check_secrets
+        run: |
+          if [ -n "${{ secrets.KEYSTORE_BASE64 }}" ]; then
+            echo "has_keystore=true" >> $GITHUB_OUTPUT
+            echo "✓ Keystore secrets found, will build signed APK"
+          else
+            echo "has_keystore=false" >> $GITHUB_OUTPUT
+            echo "⚠ No keystore secrets, will build unsigned debug APK"
+          fi
+
+      - name: Decode and setup keystore
+        if: steps.check_secrets.outputs.has_keystore == 'true'
+        env:
+          KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
+          KEY_STORE_PASSWORD: ${{ secrets.KEY_STORE_PASSWORD }}
+          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
+        run: |
+          echo "$KEYSTORE_BASE64" | base64 -d > mobile/android/app/upload-keystore.jks
+          echo "storePassword=$KEY_STORE_PASSWORD" > mobile/android/key.properties
+          echo "keyPassword=$KEY_PASSWORD" >> mobile/android/key.properties
+          echo "keyAlias=$KEY_ALIAS" >> mobile/android/key.properties
+          echo "storeFile=upload-keystore.jks" >> mobile/android/key.properties
+          echo "✓ Keystore configured successfully"
+
+      - name: Build APK (Release)
+        working-directory: mobile
+        run: |
+          if [ "${{ steps.check_secrets.outputs.has_keystore }}" == "true" ]; then
+            echo "Building signed release APK..."
+            flutter build apk --release --build-name="$SURE_BUILD_NAME" --build-number="$SURE_BUILD_NUMBER"
+          else
+            echo "Building debug-signed APK..."
+            flutter build apk --debug --build-name="$SURE_BUILD_NAME" --build-number="$SURE_BUILD_NUMBER"
+          fi
+
+      - name: Upload APK artifact
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
+        with:
+          name: app-release-apk
+          path: |
+            mobile/build/app/outputs/flutter-apk/app-release.apk
+            mobile/build/app/outputs/flutter-apk/app-debug.apk
+          retention-days: 30
+          if-no-files-found: ignore
+
+      - name: Build App Bundle (Release)
+        if: steps.check_secrets.outputs.has_keystore == 'true'
+        working-directory: mobile
+        run: flutter build appbundle --release --build-name="$SURE_BUILD_NAME" --build-number="$SURE_BUILD_NUMBER"
+
+      - name: Upload AAB artifact
+        if: steps.check_secrets.outputs.has_keystore == 'true'
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
+        with:
+          name: app-release-aab
+          path: mobile/build/app/outputs/bundle/release/app-release.aab
+          retention-days: 30
+
+  build-ios:
+    name: Build iOS IPA
+    runs-on: macos-latest
+    timeout-minutes: 45
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5.0.1
+        with:
+          persist-credentials: false
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2 # v2.23.0
+        with:
+          flutter-version: '3.32.4'
+          channel: 'stable'
+          cache: true
+
+      - name: Resolve app version
+        shell: bash
+        env:
+          APP_VERSION_INPUT: ${{ inputs.app_version }}
+        run: |
+          set -euo pipefail
+          if [[ -n "$APP_VERSION_INPUT" ]]; then
+            version="${APP_VERSION_INPUT#v}"
+          elif [[ "$GITHUB_REF_TYPE" == tag && "$GITHUB_REF_NAME" == v* ]]; then
+            version="${GITHUB_REF_NAME#v}"
+          else
+            version="$(sed -n 's/^version: *//p' mobile/pubspec.yaml)"
+            version="${version%%+*}"
+          fi
+          printf '%s\n' "$version" > .sure-version
+          echo "SURE_BUILD_NAME=${version%%-*}" >> "$GITHUB_ENV"
+
+      - name: Get dependencies
+        working-directory: mobile
+        run: flutter pub get
+
+      - name: Copy Sure icons from public/
+        run: cp public/android-chrome-512x512.png mobile/assets/icon/app_icon.png
+
+      - name: Generate app icons
+        working-directory: mobile
+        run: flutter pub run flutter_launcher_icons
+
+      - name: Install CocoaPods dependencies
+        working-directory: mobile/ios
+        run: pod install
+
+      - name: Analyze code
+        working-directory: mobile
+        run: flutter analyze --no-fatal-infos
+
+      - name: Run tests
+        working-directory: mobile
+        run: flutter test
+
+      - name: Build iOS (No Code Signing)
+        working-directory: mobile
+        # Unsigned validation artifact, not a store upload; do not inherit the +0 placeholder.
+        run: flutter build ios --release --no-codesign --build-name="$SURE_BUILD_NAME" --build-number=1
+
+      - name: Create IPA archive info
+        working-directory: mobile
+        run: |
+          echo "iOS build completed successfully" > build/ios-build-info.txt
+          echo "Build date: $(date)" >> build/ios-build-info.txt
+          echo "Note: This build is not code-signed and cannot be installed on physical devices" >> build/ios-build-info.txt
+          echo "For distribution, you need to configure code signing with Apple certificates" >> build/ios-build-info.txt
+
+      - name: Upload iOS build artifact
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
+        with:
+          name: ios-build-unsigned
+          path: |
+            mobile/build/ios/iphoneos/Runner.app
+            mobile/build/ios-build-info.txt
+          retention-days: 30
