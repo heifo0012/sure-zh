@@ -238,3 +238,5 @@ jobs:
             mobile/build/ios/iphoneos/Runner.app
             mobile/build/ios-build-info.txt
           retention-days: 30
+
+# zh-cn build: re-index trigger
